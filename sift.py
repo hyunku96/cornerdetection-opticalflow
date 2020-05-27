@@ -18,9 +18,9 @@ def resize(img, size):
                              img[i//size][min(j//size+1, width-1)],\
                              img[min(i//size+1, height-1)][j//size], \
                              img[min(i//size+1, height-1)][min(j//size+1, width-1)]
-                col_w1 = (i - i // size)/size
+                col_w1 = (size - i % size)/size
                 col_w2 = 1 - col_w1
-                row_w1 = (j - j // size)/size
+                row_w1 = (size - j % size)/size
                 row_w2 = 1 - row_w1
                 output[i, j] = int(row_w2 * (a * col_w2 + c * col_w1) + row_w1 * (b * col_w2 + d * col_w1))
 
@@ -66,7 +66,7 @@ octave_num = 4
 picture_num = 5
 sigma = 1.6
 filter_size = 3
-keypoint_threshold = 0
+keypoint_threshold = 3.8
 # make octave(scaling)
 octaves = []
 for o in range(octave_num):
@@ -79,37 +79,42 @@ octaves = np.array(octaves)
 # make DoG and extract keypoints
 DoGs = []
 keypoints = []
-count = 0
 for o in range(octave_num):
     DoG = []
     for p in range(picture_num-1):
         DoG.append(abs(octaves[o][p] - octaves[o][p+1]))   # 4, 238, 350
     DoG = np.reshape(DoG, (-1, int(((2/(2**o))*height - filter_size//2*2)), int(((2/(2**o))*width - filter_size//2*2))))
-    print(np.max(DoG))
+
     for d in range(len(DoG)-2):  # sigma axis
         for i in range(DoG[d].shape[0]-2):
             for j in range(DoG[d].shape[1]-2):
                 max = np.max(DoG[d:d+3, i:i+3, j:j+3])
                 if max == DoG[d+1][i+1][j+1]:
                     if max > keypoint_threshold:
-                        count += 1
                         keypoints.append(point((i+1)/(2/(2**o))+filter_size//2, (j+1)/(2/(2**o))+filter_size//2))  #
 
     DoGs.append(DoG)
 
 # print(DoGs.shape)  4, 4
-print(count)
 # keypoint localize. all points are treated as same
 mask = np.zeros((height, width))
 for i in range(len(keypoints)):
-    mask[keypoints[i].x][keypoints[i].y] = 1
+    mask[keypoints[i].x][keypoints[i].y] = 255
 
 keypoints.clear()
 for i in range(height):
     for j in range(width):
-        if mask[i][j] == 1:
+        if mask[i][j] == 255:
             keypoints.append(point(i, j))
-print(len(keypoints))
+
+
+frame = cv2.imread('frame1.png', cv2.IMREAD_ANYCOLOR)
+cv2.imshow('frame', frame)
+a = np.zeros((height, width, 3))
+for i in range(3):
+    a[:,:,i] = frame[:,:,i] + mask
+cv2.imshow('window', a)
+cv2.waitKey()
 
 # Hessian(calc h and select keypoint)
 #for i in range(len(keypoints)):
